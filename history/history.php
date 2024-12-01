@@ -141,7 +141,7 @@ $user_id = $_SESSION['user_id'];
     {
         if ($tableName == 'appointments') {
             $query = "
-            SELECT a.appointment_date, a.appointment_time, a.payment_method, a.total_price, GROUP_CONCAT(bs.service_id) AS service_ids
+            SELECT a.appointment_date, a.appointment_time, a.payment_method, a.total_price, GROUP_CONCAT(bs.service_id) AS service_ids, a.id
             FROM appointments a
             LEFT JOIN booked_services bs ON a.id = bs.appointment_id
             WHERE a.status = '$status' AND a.user_id = '$user_id'
@@ -149,7 +149,7 @@ $user_id = $_SESSION['user_id'];
         ";
         } elseif ($tableName == 'approved_bookings') {
             $query = "
-            SELECT b.appointment_date, b.appointment_time, b.payment_method, b.total_price, ab.service_names
+            SELECT b.appointment_date, b.appointment_time, b.payment_method, b.total_price, ab.service_names, b.id
             FROM approved_bookings ab
             JOIN appointments b ON b.id = ab.appointment_id
             WHERE b.user_id = '$user_id'
@@ -182,6 +182,10 @@ $user_id = $_SESSION['user_id'];
                     echo '        <p><strong>Payment:</strong> ' . htmlspecialchars($row['payment_method']) . '</p>';
                     echo '    </div>';
                     echo '    <div class="status-label ' . strtolower($status) . '">' . ucfirst($status) . '</div>';
+                    if($status === 'pending') {
+                        echo '    <div class="cancel cancel-button" name="cancel-button" onclick="cancelBooking(' . htmlspecialchars($row['id']) . ')">Cancel</div>';
+                    }
+                    
                     echo '</div>';
                 }
             } else {
@@ -267,6 +271,8 @@ $user_id = $_SESSION['user_id'];
         document.addEventListener('DOMContentLoaded', () => {
             showSection('pending');
         });
+
+        
     </script>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -283,6 +289,33 @@ $user_id = $_SESSION['user_id'];
             const sidebar = document.getElementById('sidebar');
             sidebar.style.display = sidebar.style.display === 'block' ? 'none' : 'block';
         }
+        
+        function cancelBooking(appointmentId) {
+        if (confirm("Are you sure you want to cancel this booking?")) {
+            // Send an AJAX request to cancel the booking
+            fetch("../booking/process/cancel_booking_process.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ id: appointmentId }),
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.success) {
+                        alert("Booking canceled successfully!");
+                        location.reload(); // Refresh the page to update the bookings list
+                    } else {
+                        alert("Failed to cancel booking: " + data.error);
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                    alert("An error occurred while canceling the booking.");
+                });
+        }
+    }
+
     </script>
 
     <script>
@@ -463,6 +496,19 @@ $user_id = $_SESSION['user_id'];
         font-weight: bold;
         border-radius: 20px;
         margin-top: 15px;
+    }
+
+    
+    .cancel{
+        background-color: red;
+        padding: 8px 15px;
+        margin-top: 5px;
+        border-radius: 20px;
+        text-align: center;
+        color: white;
+    }
+    .cancel:hover{
+        cursor: pointer;
     }
 
     .pending {
